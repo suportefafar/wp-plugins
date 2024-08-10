@@ -534,7 +534,7 @@ function fafar_cf7crud_get_custom_input_file( $input_file_str, $file_attrs ) {
 }
 
 function fafar_cf7crud_adding_hidden_fields($content) {
-
+    
     if( is_admin() ) 
         return $content;
 
@@ -561,6 +561,16 @@ function fafar_cf7crud_adding_hidden_fields($content) {
         }
         
     }
+
+    // if( ! empty($_GET) ) {
+    //     foreach ( $_GET as $key => $value) {
+
+    //         if( $key == 'id' ) continue;
+
+    //         $content .= "<input class='wpcf7-form-control wpcf7-hidden' value='" . $value . "' type='hidden' name='" . $key . "' />";
+
+    //     }
+    // }
 
     // Adding Hidden Submission ID Field
     if( isset( $_GET['id'] ) )
