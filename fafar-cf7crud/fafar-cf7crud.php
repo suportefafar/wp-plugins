@@ -1,13 +1,19 @@
 <?php
 /*
-Plugin name: FAFAR Contact Form 7 CRUD
-Plugin URI: hhttps://github.com/giovanecf
-Description: Save and manage Contact Form 7 messages. Never lose important data. FAFAR Contact Form 7 CRUD plugin is an add-on for the Contact Form 7 plugin.
-Author: Geovani Figueiredo
-Author URI: https://github.com/giovanecf
-Text Domain: fafar-cf7crud
-Domain Path: /languages/
-Version: 1.2.7
+ * Plugin Name:       FAFAR Contact Form 7 CRUD
+ * Plugin URI:        https://github.com/suportefafar/wp-plugins/tree/main/fafar-cf7crud
+ * Description:       Salve e edite submissões do Contact Form 7. Nunca perca dados importantes. O plugin FAFAR Contact Form 7 CRUD é um complemento para o plugin Contact Form 7.
+ * Version:           1.0.1
+ * Requires at least: 5.2
+ * Requires PHP:      7.2
+ * Author:            Suporte e T.I. - FAFAR
+ * Author URI:        https://github.com/suportefafar
+ * License:           GPL v2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Update URI:        https://github.com/suportefafar/wp-plugins/tree/main/fafar-cf7crud
+ * Text Domain:       fafar-cf7crud
+ * Domain Path:       /languages
+ * Requires Plugins:  WPCF7
 */
 
 /**  This protect the plugin file from direct access */
@@ -16,7 +22,7 @@ if ( ! defined( 'WPINC' ) ) die;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 
-add_action('wp_enqueue_scripts', 'callback_for_setting_up_scripts');
+add_action('wp_enqueue_scripts', 'fafar_cf7crud_callback_for_setting_up_scripts');
 
 
 register_activation_hook( __FILE__, 'fafar_cf7crud_on_activate' );
@@ -37,7 +43,7 @@ add_filter('wpcf7_form_tag', 'fafar_cf7crud_populate_form_field');
 add_action( 'wpcf7_before_send_mail', 'fafar_cf7crud_before_send_mail_handler' );
 
 
-function callback_for_setting_up_scripts() {
+function fafar_cf7crud_callback_for_setting_up_scripts() {
 
     wp_register_style('fafar-cf7crud', plugins_url( 'css/main.css', __FILE__ ) );
 
@@ -61,10 +67,11 @@ function fafar_cf7crud_create_table(){
         $charset_collate = $cfdb->get_charset_collate();
 
         $sql = "CREATE TABLE $table_name (
-            submission_id CHAR(32) NOT NULL,
-            form_id bigint(20) NOT NULL,
-            submission_data longtext NOT NULL,
-            created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+            submission_id VARCHAR(255) NOT NULL,
+            form_id INT(20) NOT NULL,
+            submission_data JSON NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY  (submission_id)
         ) $charset_collate;";
 
@@ -73,7 +80,7 @@ function fafar_cf7crud_create_table(){
     }
 
     $upload_dir    = wp_upload_dir();
-    $fafar_cf7crud_dirname = $upload_dir['basedir'].'/fafar_cf7crud_uploads';
+    $fafar_cf7crud_dirname = $upload_dir['basedir'].'/fafar-cf7crud-uploads';
     if ( ! file_exists( $fafar_cf7crud_dirname ) ) {
         wp_mkdir_p( $fafar_cf7crud_dirname );
         $fp = fopen( $fafar_cf7crud_dirname.'/index.php', 'w');
@@ -88,9 +95,12 @@ function fafar_cf7crud_create_table(){
 function fafar_cf7crud_on_activate( $network_wide ){
 
     global $wpdb;
+
+    $cfdb = apply_filters( 'fafar_cf7crud_database', $wpdb ); // Caso queira mudar o banco de dados
+    
     if ( is_multisite() && $network_wide ) {
         // Get all blogs in the network and activate plugin on each one
-        $blog_ids = $wpdb->get_col( "SELECT blog_id FROM $wpdb->blogs" );
+        $blog_ids = $cfdb->get_col( "SELECT blog_id FROM $cfdb->blogs" );
         foreach ( $blog_ids as $blog_id ) {
             switch_to_blog( $blog_id );
             fafar_cf7crud_create_table();
@@ -106,7 +116,7 @@ function fafar_cf7crud_on_activate( $network_wide ){
 function fafar_cf7crud_upgrade_function( $upgrader_object, $options ) {
 
     $upload_dir    = wp_upload_dir();
-    $fafar_cf7crud_dirname = $upload_dir['basedir'].'/fafar_cf7crud_uploads';
+    $fafar_cf7crud_dirname = $upload_dir['basedir'].'/fafar-cf7crud-uploads';
 
     if ( file_exists( $fafar_cf7crud_dirname.'/index.php' ) ) return;
         
@@ -158,9 +168,9 @@ function fafar_cf7crud_before_send_mail_create( $contact_form ) {
     $cfdb                  = apply_filters( 'fafar_cf7crud_database', $wpdb ); // Caso queira mudar o banco de dados
     $table_name            = $cfdb->prefix . 'fafar_cf7crud_submissions';
     $upload_dir            = wp_upload_dir();
-    $fafar_cf7crud_dirname = $upload_dir[ 'basedir' ] . '/fafar_cf7crud_uploads';
+    $fafar_cf7crud_dirname = $upload_dir[ 'basedir' ] . '/fafar-cf7crud-uploads';
     $bytes                 = random_bytes(5);
-    $unique_hash              = time().bin2hex($bytes);
+    $unique_hash           = time().bin2hex($bytes);
 
     $submission   = WPCF7_Submission::get_instance();
     $contact_form = $submission->get_contact_form();
@@ -250,14 +260,12 @@ function fafar_cf7crud_before_send_mail_create( $contact_form ) {
         do_action( 'fafar_cf7crud_before_save', $form_data );
 
         $form_id         = $contact_form->id();
-        $submission_data = serialize( $form_data );
-        $created_at      = current_time( 'Y-m-d H:i:s' );
+        $submission_data = json_encode( $form_data );
 
         $cfdb->insert( $table_name, array(
             'submission_id'   => $unique_hash,
             'form_id'         => $form_id,
             'submission_data' => $submission_data,
-            'created_at'      => $created_at
         ) );
 
         /* fafar_cf7crud after save data */
@@ -277,7 +285,7 @@ function fafar_cf7crud_before_send_mail_update( $contact_form ) {
     $cfdb                  = apply_filters( 'fafar_cf7crud_database', $wpdb ); // Caso queira mudar o banco de dados
     $table_name            = $cfdb->prefix . 'fafar_cf7crud_submissions';
     $upload_dir            = wp_upload_dir();
-    $fafar_cf7crud_dirname = $upload_dir[ 'basedir' ] . '/fafar_cf7crud_uploads';
+    $fafar_cf7crud_dirname = $upload_dir[ 'basedir' ] . '/fafar-cf7crud-uploads';
     $bytes                 = random_bytes(5);
     $unique_hash           = time().bin2hex($bytes);
 
@@ -375,10 +383,9 @@ function fafar_cf7crud_before_send_mail_update( $contact_form ) {
         do_action( 'fafar_cf7crud_before_update', $form_data );
 
         $form_id         = $contact_form->id();
-        $submission_data = serialize( $form_data );
-        $created_at      = current_time( 'Y-m-d H:i:s' );
+        $submission_data = json_encode( $form_data );
 
-        $wpdb->update(
+        $cfdb->update(
             $table_name,
             array(
                 'submission_data' => $submission_data
@@ -400,14 +407,14 @@ function fafar_cf7crud_get_file_attrs() {
 
     $cfdb = apply_filters( 'fafar_cf7crud_database', $wpdb ); // Caso queira mudar o banco de dados
 
-    $assistido = $wpdb->get_results("SELECT * FROM `" . $cfdb->prefix . 'fafar_cf7crud_submissions' . "` WHERE `submission_id` = '" . $_GET['id'] . "'" );
+    $assistido = $cfdb->get_results("SELECT * FROM `" . $cfdb->prefix . 'fafar_cf7crud_submissions' . "` WHERE `submission_id` = '" . $_GET['id'] . "'" );
 
     $file_attrs = array();
 
 	if ( !$assistido[0] )
         return $file_attrs;
 	
-	$form_data = unserialize( $assistido[0]->submission_data );
+	$form_data = json_decode( $assistido[0]->submission_data );
 
 	foreach ( $form_data as $chave => $data ) {
 
@@ -429,12 +436,12 @@ function fafar_cf7crud_get_input_value( $tag_name ) {
 
     $cfdb = apply_filters( 'fafar_cf7crud_database', $wpdb ); // Caso queira mudar o banco de dados
 
-    $assistido = $wpdb->get_results( "SELECT * FROM `" . $cfdb->prefix . 'fafar_cf7crud_submissions' . "` WHERE `submission_id` = '" . $_GET['id'] . "'" );
+    $assistido = $cfdb->get_results( "SELECT * FROM `" . $cfdb->prefix . 'fafar_cf7crud_submissions' . "` WHERE `submission_id` = '" . $_GET['id'] . "'" );
 
 	if ( !$assistido[0] ) 
         return "";
 	
-	$form_data = unserialize( $assistido[0]->submission_data );
+	$form_data = json_decode( $assistido[0]->submission_data );
 
 	foreach ( $form_data as $chave => $data ) {
 
@@ -455,6 +462,19 @@ function fafar_cf7crud_populate_form_field($tag) {
     if( !isset( $_GET['id'] ) ) return $tag;
 
     if( $tag['basetype'] == 'radio' ) {
+
+        $input_value = fafar_cf7crud_get_input_value( $tag['name'] );
+
+        foreach ($tag['values'] as $key => $value) {
+
+            if ($value == $input_value) {
+
+                $tag['options'][] = 'default:' . ($key + 1);
+                break;
+            }
+        }
+
+    } else if( $tag['basetype'] == 'select' ) {
 
         $input_value = fafar_cf7crud_get_input_value( $tag['name'] );
 

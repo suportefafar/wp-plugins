@@ -28,7 +28,6 @@ If exists, "FAFAR CF7CRUD" does know that is a update form.
 It makes available a button by a shortcode to delete a submission by 'id'. 
 
 
-
 = GLOBAL
 
 1 - On create, I have to put a 'preview' on inputs to image upload.
@@ -38,9 +37,25 @@ It makes available a button by a shortcode to delete a submission by 'id'.
 Every input[type=file] become a custom input for better control, on create AND update forms.
 
 
+= DB
+
+wp_fafar_cf7crud_submissions
+- submission_id   VARCHAR(255)   (NOT NULL | PRIMARY KEY)
+- form_id         INT(20) (NOT NULL)
+- submission_data JSON   (NOT NULL)
+- updated_at      TIMESTAMP   (NOT NULL | DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
+- created_at      TIMESTAMP   (NOT NULL | DEFAULT CURRENT_TIMESTAMP)
+
+
+= UPLOAD FOLDER
+
+Path: [...]wp-content/uploads/fafar-cf7crud-uploads/
+
+
 = NOT SUPPORTED
 
 - Drag and Drop Multiple File Upload - Contact Form 7
+
 
 == Installation ==
 
@@ -52,7 +67,13 @@ Every input[type=file] become a custom input for better control, on create AND u
 == Changelog ==
 
 = 1.0.0 =
-Basic
+Create and Update
+
+= 1.0.1 =
+Change submission_data type from LONGTEXT to JSON
+Change from serialize()/deserialize() to json_encode()/json_decode()
+
+Change submission_id type from TEXT to VARCHAR(255)
 
 
 
