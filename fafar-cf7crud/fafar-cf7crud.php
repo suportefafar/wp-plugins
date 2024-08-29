@@ -14,6 +14,7 @@
  * Text Domain:       fafar-cf7crud
  * Domain Path:       /languages
  * Requires Plugins:  WPCF7
+ * GitHub Plugin URI: https://github.com/suportefafar/wp-plugins
 */
 
 /**  This protect the plugin file from direct access */
